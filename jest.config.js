@@ -14,6 +14,7 @@ module.exports = {
   clearMocks: true,
   // setupFiles: ['dotenv/config'],
   testEnvironment: 'node',
+  preset: '@shelf/jest-mongodb',
   transform: {
     '.+\\.ts$': 'ts-jest'
   }
