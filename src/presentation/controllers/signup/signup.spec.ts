@@ -1,16 +1,7 @@
-import { MissingParamError, InvalidParamError, ServerError } from '../../errors'
-import { AccountModel, EmailValidator, AddAccount, AddAccountModel, Validation } from './signup-protocols'
+import { MissingParamError, ServerError } from '../../errors'
+import { AccountModel, AddAccount, AddAccountModel, Validation } from './signup-protocols'
 import { SignUpController } from './signup'
 import { badRequest } from '../../helpers/http-helper'
-
-const makeEmailValidator = (): EmailValidator => {
-  class EmailValidatorStub implements EmailValidator {
-    validate (email: string): boolean {
-      return true
-    }
-  }
-  return new EmailValidatorStub()
-}
 
 const makeAddAccount = (): AddAccount => {
   class AddAccountStub implements AddAccount {
@@ -38,72 +29,20 @@ const makeValidation = (): Validation => {
 
 interface SutTypes {
   sut: SignUpController
-  emailValidatorStub: EmailValidator
   addAccountStub: AddAccount
   validationStub: Validation
 }
 const makeSut = (): SutTypes => {
-  const emailValidatorStub = makeEmailValidator()
   const addAccountStub = makeAddAccount()
   const validationStub = makeValidation()
-  const sut = new SignUpController(emailValidatorStub, addAccountStub, validationStub)
+  const sut = new SignUpController(addAccountStub, validationStub)
 
   return {
-    sut, emailValidatorStub, addAccountStub, validationStub
+    sut, addAccountStub, validationStub
   }
 }
 
 describe('SignUp Controller', () => {
-  test('should return 400 if an invalid email is provided', async () => {
-    const { sut, emailValidatorStub } = makeSut()
-    jest.spyOn(emailValidatorStub, 'validate').mockReturnValueOnce(false)
-    const httpRequest = {
-      body: {
-        name: 'any_name',
-        email: 'any_email',
-        password: 'any_password',
-        passwordConfirmation: 'any_password'
-      }
-    }
-    const httpReponse = await sut.handle(httpRequest)
-
-    expect(httpReponse.statusCode).toBe(400)
-    expect(httpReponse.body).toEqual(new InvalidParamError('email'))
-  })
-  test('should call EmailValidator with correct email', async () => {
-    const { sut, emailValidatorStub } = makeSut()
-    const validateSpy = jest.spyOn(emailValidatorStub, 'validate')
-    const httpRequest = {
-      body: {
-        name: 'any_name',
-        email: 'any_email@email.com',
-        password: 'any_password',
-        passwordConfirmation: 'any_password'
-      }
-    }
-    await sut.handle(httpRequest)
-
-    expect(validateSpy).toHaveBeenCalledWith('any_email@email.com')
-  })
-  test('should return 500 if EmailValidator throws', async () => {
-    const { sut, emailValidatorStub } = makeSut()
-    jest.spyOn(emailValidatorStub, 'validate').mockImplementationOnce(() => {
-      throw new Error()
-    })
-
-    const httpRequest = {
-      body: {
-        name: 'any_name',
-        email: 'any_email',
-        password: 'any_password',
-        passwordConfirmation: 'any_password'
-      }
-    }
-    const httpReponse = await sut.handle(httpRequest)
-
-    expect(httpReponse.statusCode).toBe(500)
-    expect(httpReponse.body).toEqual(new ServerError('stack'))
-  })
   test('should call AddAccount with correct values', async () => {
     const { sut, addAccountStub } = makeSut()
     const addSpy = jest.spyOn(addAccountStub, 'add')
