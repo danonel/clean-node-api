@@ -1,4 +1,5 @@
 import { AuthenticationModel } from '../../../domain/useCase/authentication'
+import { HashComparer } from '../../protocols/criptography/hash-comparer'
 import { LoadAccountByEmailRepository } from '../../protocols/db/load-account-by-email-repository'
 import { AccountModel } from '../add-account/db-add-account-protocols'
 import { DbAuthentication } from './db-authentication'
@@ -8,7 +9,7 @@ const makeFakeAccount = (): AccountModel => ({
   id: ' any_id',
   email: 'any_mail@mail.com',
   name: 'any_name',
-  password: 'any_password'
+  password: 'hashed_password'
 
 })
 
@@ -26,17 +27,27 @@ const makeFakeAuthentication = (): AuthenticationModel => ({
   password: 'any_password'
 })
 
+const makehashCompareStub = (): HashComparer => {
+  class HashCompareStub implements HashComparer {
+    async compare (value: string, hash: string): Promise<boolean> {
+      return true
+    }
+  }
+  return new HashCompareStub()
+}
 interface SutTypes {
   sut: DbAuthentication
   loadAccountByEmailRepositoryStub: LoadAccountByEmailRepository
+  hashCompareStub: HashComparer
 }
 
 const makeSut = (): SutTypes => {
   const loadAccountByEmailRepositoryStub = makeLoadAccountByEmailRepositoryStub()
-  const sut = new DbAuthentication(loadAccountByEmailRepositoryStub)
+  const hashCompareStub = makehashCompareStub()
+  const sut = new DbAuthentication(loadAccountByEmailRepositoryStub, hashCompareStub)
 
   return {
-    loadAccountByEmailRepositoryStub, sut
+    loadAccountByEmailRepositoryStub, sut, hashCompareStub
   }
 }
 
@@ -61,5 +72,12 @@ describe('Db Authentication Use Case', () => {
     const accessToken = await sut.auth(makeFakeAuthentication())
 
     expect(accessToken).toBe(null)
+  })
+  test('should call HashComparer with correct values', async () => {
+    const { hashCompareStub, sut } = makeSut()
+    const compareSpy = jest.spyOn(hashCompareStub, 'compare').mockReturnValueOnce(null)
+    await sut.auth(makeFakeAuthentication())
+
+    expect(compareSpy).toHaveBeenCalledWith('any_password', 'hashed_password')
   })
 })
